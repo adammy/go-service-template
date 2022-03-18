@@ -1,1 +1,1 @@
-# go-service-template
+# Go Service Template

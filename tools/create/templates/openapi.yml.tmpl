@@ -1,0 +1,45 @@
+openapi: 3.0.3
+
+info:
+  title: {{.name}} Service
+  description: The {{.name}} Service provides some fake data.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api/v1
+  - url: https://example.github.io/api/v1
+
+paths:
+  /hello/{name}:
+    get:
+      operationId: helloName
+      summary: Get Hello Name
+      description: Say hello name.
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+            description: A name to print.
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hello'
+
+components:
+  schemas:
+    Hello:
+      type: object
+      description: A Unity Show attendee profile.
+      required:
+        - hello
+      properties:
+        hello:
+          type: string
+          description: Saying hello.
+          x-oapi-codegen-extra-tags:
+            tag: "customtagval"
