@@ -1,0 +1,5 @@
+package {{.Service}}
+
+{{range .Types -}}
+//go:generate oapi-codegen -config ../../../api/{{$.Service}}/oapi-codegen.yaml -templates ../../../tools/oapi-codegen/templates -generate {{.}} -o {{.}}.gen.go ../../../api/{{$.Service}}/openapi.yaml
+{{end}}

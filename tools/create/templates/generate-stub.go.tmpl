@@ -1,0 +1,6 @@
+//go:build stub
+// +build stub
+
+package {{.Service}}
+
+//go:generate oapi-codegen -config ../../../api/{{.Service}}/oapi-codegen.yaml -templates ../../../tools/oapi-codegen/templates-stub/ -generate chi-server -o server.go ../../../api/{{.Service}}/openapi.yaml

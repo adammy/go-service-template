@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -14,10 +13,10 @@ import (
 )
 
 type fileConfig struct {
-	templatePath string
-	outputDir    string
-	outputFile   string
-	data         interface{}
+	tmpl string
+	dir  string
+	file string
+	data interface{}
 }
 
 func validateName(name string) error {
@@ -36,8 +35,8 @@ func validateName(name string) error {
 }
 
 func createDir(dir string) error {
-	if _, err := os.Stat(dir); err != nil && errors.Is(err, fs.ErrNotExist) {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 			return err
 		}
 		return err
@@ -47,27 +46,32 @@ func createDir(dir string) error {
 
 func newFileConfig(name, cfgType string) (*fileConfig, error) {
 	var (
-		templatePath string
-		outputDir    string
-		outputFile   string
-		data         map[string]string = make(map[string]string)
+		tmpl string
+		dir  string
+		file string
+		data map[string]string = make(map[string]string)
 	)
 
 	switch cfgType {
 	case "api":
-		templatePath = "tools/generate-service/templates/openapi.yml.tmpl"
-		outputDir = "api"
-		outputFile = fmt.Sprintf("%s.yml", name)
+		tmpl = "tools/create/templates/openapi.yml.tmpl"
+		dir = "api"
+		file = fmt.Sprintf("%s.yml", name)
+		data["name"] = strings.Title(name)
+	case "main":
+		tmpl = "tools/create/templates/main.go.tmpl"
+		dir = fmt.Sprintf("cmd/%s", name)
+		file = "main.go"
 		data["name"] = strings.Title(name)
 	default:
 		return nil, fmt.Errorf("invalid cfg type %s", cfgType)
 	}
 
 	return &fileConfig{
-		templatePath: templatePath,
-		outputDir:    outputDir,
-		outputFile:   outputFile,
-		data:         data,
+		tmpl: tmpl,
+		dir:  dir,
+		file: file,
+		data: data,
 	}, nil
 }
 
@@ -76,22 +80,21 @@ func createFile(cfg *fileConfig) error {
 		buf bytes.Buffer
 	)
 
-	if err := createDir(cfg.outputDir); err != nil {
+	if err := createDir(cfg.dir); err != nil {
 		return err
 	}
 
-	template := template.Must(template.ParseFiles(cfg.templatePath))
-	template.Execute(&buf, cfg.data)
+	tmpl := template.Must(template.ParseFiles(cfg.tmpl))
+	tmpl.Execute(&buf, cfg.data)
 
-	file, err := os.Create(path.Join(cfg.outputDir, cfg.outputFile))
+	file, err := os.Create(path.Join(cfg.dir, cfg.file))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer file.Close()
 
-	_, err = file.Write(buf.Bytes())
-	if err != nil {
-		log.Fatal(err)
+	if _, err = file.Write(buf.Bytes()); err != nil {
+		return err
 	}
 	return nil
 }
@@ -99,22 +102,22 @@ func createFile(cfg *fileConfig) error {
 func main() {
 	flag.Parse()
 	names := flag.Args()
+	types := []string{"api", "main"}
 	if len(names) >= 1 {
 		name := names[0]
 		if err := validateName(name); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("creating %s service\n", name)
-		cfg, err := newFileConfig(name, "api")
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err := createFile(cfg); err != nil {
-			fmt.Printf("failed to create %s service: %s\n", name, err)
-		} else {
-			fmt.Printf("finished creating %s service\n", name)
+		for _, cfgType := range types {
+			cfg, err := newFileConfig(name, cfgType)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if err := createFile(cfg); err != nil {
+				log.Fatalf("failed to create %s service: %s\n", name, err)
+			}
 		}
 	} else {
-		log.Fatal("name should not be empty 1")
+		log.Fatal("name should not be empty")
 	}
 }
